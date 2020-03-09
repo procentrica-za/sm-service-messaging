@@ -9,52 +9,49 @@ import (
 	"net/http"
 )
 
-func (s *Server) handleregisteruser() http.HandlerFunc {
+func (s *Server) handleaddchat() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("handleaddchat Has Been Called!")
 		//get JSON payload
-		regUser := RegisterUser{}
-		err := json.NewDecoder(r.Body).Decode(&regUser)
 
+		startchat := StartChat{}
+		err := json.NewDecoder(r.Body).Decode(&startchat)
 		//handle for bad JSON provided
+
 		if err != nil {
 			w.WriteHeader(500)
 			fmt.Fprint(w, err.Error())
-			fmt.Println("Improper registration details provided")
+			fmt.Println("Could not read body of request into proper JSON format for starting a chat.\n Please check that your data is in the correct format.")
 			return
 		}
+
 		//create byte array from JSON payload
-		requestByte, _ := json.Marshal(regUser)
+		requestByte, _ := json.Marshal(startchat)
 
 		//post to crud service
-		req, respErr := http.Post("http://"+config.CRUDHost+":"+config.CRUDPort+"/user", "application/json", bytes.NewBuffer(requestByte))
+		req, respErr := http.Post("http://"+config.CRUDHost+":"+config.CRUDPort+"/chat", "application/json", bytes.NewBuffer(requestByte))
 
 		//check for response error of 500
 		if respErr != nil {
 			w.WriteHeader(500)
 			fmt.Fprint(w, respErr.Error())
-			fmt.Println("Error in communication with CRUD service endpoint for request to register")
+			fmt.Println("Error in communication with CRUD service endpoint for request to start a chat")
 			return
 		}
 		if req.StatusCode != 200 {
+			w.WriteHeader(req.StatusCode)
 			fmt.Fprint(w, "Request to DB can't be completed...")
-			fmt.Println("Unable to process registration")
+			fmt.Println("Unable to request to start chat to the CRUD service")
 		}
 		if req.StatusCode == 500 {
 			w.WriteHeader(500)
-
 			bodyBytes, err := ioutil.ReadAll(req.Body)
 			if err != nil {
 				log.Fatal(err)
 			}
 			bodyString := string(bodyBytes)
-			fmt.Fprintf(w, "Request to DB can't be completed..."+bodyString)
-			fmt.Println("Request to DB can't be completed..." + bodyString)
-			return
-		}
-		if err != nil {
-			w.WriteHeader(500)
-			fmt.Fprint(w, err.Error())
-			fmt.Println("Registration is not able to be completed by internal error")
+			fmt.Fprintf(w, "Request to DB can't be completed with request: "+bodyString)
+			fmt.Println("Request to DB can't be completed with request: " + bodyString)
 			return
 		}
 
@@ -62,107 +59,56 @@ func (s *Server) handleregisteruser() http.HandlerFunc {
 		defer req.Body.Close()
 
 		//create new response struct
-		var registerResponse RegisterUserResult
+		var startchatResponse StartChatResult
 
 		//decode request into decoder which converts to the struct
 		decoder := json.NewDecoder(req.Body)
-
-		err = decoder.Decode(&registerResponse)
+		err = decoder.Decode(&startchatResponse)
 		if err != nil {
 			w.WriteHeader(500)
 			fmt.Fprint(w, err.Error())
-			fmt.Println("Error occured in decoding registration response")
+			fmt.Println("Error occured in decoding start new chat response ")
 			return
 		}
-		js, jserr := json.Marshal(registerResponse)
-		if jserr != nil {
-			w.WriteHeader(500)
-			fmt.Fprint(w, jserr.Error())
-			fmt.Println("Error occured when trying to marshal the response to register user")
-			return
-		}
-
-		//return back to Front-End user
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(200)
-		w.Write(js)
-	}
-}
-func (s *Server) handleupdateuser() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		//get JSON payload
-		updateUser := UpdateUser{}
-		err := json.NewDecoder(r.Body).Decode(&updateUser)
-
-		//handle for bad JSON provided
-		if err != nil {
-			w.WriteHeader(500)
-			fmt.Fprint(w, err.Error())
-			return
-		}
-
-		client := &http.Client{}
-
-		//create byte array from JSON payload
-		requestByte, _ := json.Marshal(updateUser)
-
-		//put to crud service
-		req, err := http.NewRequest("PUT", "http://"+config.CRUDHost+":"+config.CRUDPort+"/user", bytes.NewBuffer(requestByte))
-		if err != nil {
-			fmt.Fprint(w, err.Error())
-			fmt.Println("Error in communication with CRUD service endpoint for request to update user")
-			return
-		}
-
-		// Fetch Request
-		resp, err := client.Do(req)
-		if err != nil {
-			fmt.Fprint(w, err.Error())
-			return
-		}
-
-		//close the request
-		defer resp.Body.Close()
-
-		//create new response struct
-		var updateResponse UpdateUserResult
-		decoder := json.NewDecoder(resp.Body)
-		err = decoder.Decode(&updateResponse)
-		if err != nil {
-			w.WriteHeader(500)
-			fmt.Fprint(w, err.Error())
-			return
-		}
-
 		//convert struct back to JSON
-		js, jserr := json.Marshal(updateResponse)
+		js, jserr := json.Marshal(startchatResponse)
 		if jserr != nil {
 			w.WriteHeader(500)
 			fmt.Fprint(w, jserr.Error())
-			fmt.Println("Error occured when trying to marshal the response to update user")
+			fmt.Println("Error occured when trying to marshal the decoded response into specified JSON format! ")
 			return
 		}
 
-		//return back to Front-End user
+		//return success back to Front-End user
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
 		w.Write(js)
 	}
 }
-func (s *Server) handledeleteuser() http.HandlerFunc {
+
+func (s *Server) handledeletechat() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		//get id of user for deletion
-		userid := r.URL.Query().Get("id")
+
+		//Get Advertisement ID from URL
+		chatid := r.URL.Query().Get("id")
+
+		//Check if Advertisement ID is null
+		if chatid == "" {
+			w.WriteHeader(500)
+			fmt.Fprint(w, "AdvertisementID not properly provided in URL")
+			fmt.Println("AdvertisementID not properly provided in URL")
+			return
+		}
 		client := &http.Client{}
 
-		//send delete request to CRUD service
-		req, respErr := http.NewRequest("DELETE", "http://"+config.CRUDHost+":"+config.CRUDPort+"/user?id="+userid, nil)
-
-		//check for response error of 500
+		//post to crud service
+		req, respErr := http.NewRequest("DELETE", "http://"+config.CRUDHost+":"+config.CRUDPort+"/chat?id="+chatid, nil)
 		if respErr != nil {
+
+			//check for response error of 500
 			w.WriteHeader(500)
 			fmt.Fprint(w, respErr.Error())
-			fmt.Println("Error in communication with CRUD service endpoint for request to delete a user")
+			fmt.Println("Error in communication with CRUD service endpoint for request to delete a chat")
 			return
 		}
 		// Fetch Request
@@ -175,7 +121,9 @@ func (s *Server) handledeleteuser() http.HandlerFunc {
 		//close the request
 		defer resp.Body.Close()
 		if resp.StatusCode != 200 {
-			fmt.Println("An error has occured whilst sending user ID for deletion")
+			w.WriteHeader(resp.StatusCode)
+			fmt.Fprint(w, "Request to DB can't be completed...")
+			fmt.Println("Unable to request delete chat to the CRUD service")
 		}
 		if resp.StatusCode == 500 {
 			w.WriteHeader(500)
@@ -184,200 +132,59 @@ func (s *Server) handledeleteuser() http.HandlerFunc {
 				log.Fatal(err)
 			}
 			bodyString := string(bodyBytes)
-			fmt.Fprintf(w, "Request to DB can't be completed..."+bodyString)
-			fmt.Println("Request to DB can't be completed..." + bodyString)
+			fmt.Fprintf(w, "Request to DB can't be completed with request: "+bodyString)
+			fmt.Println("Request to DB can't be completed with request: " + bodyString)
 			return
 		}
 
 		//create new response struct
-		var deleteResponse DeleteUserResult
+		var deletechatResponse DeleteChatResult
+
+		//decode request into decoder which converts to the struct
 		decoder := json.NewDecoder(resp.Body)
-		err = decoder.Decode(&deleteResponse)
+		err = decoder.Decode(&deletechatResponse)
 		if err != nil {
 			w.WriteHeader(500)
 			fmt.Fprint(w, err.Error())
+			fmt.Println("Error occured in decoding delete Chat response ")
 			return
 		}
-
 		//convert struct back to JSON
-		js, jserr := json.Marshal(deleteResponse)
+		js, jserr := json.Marshal(deletechatResponse)
 		if jserr != nil {
 			w.WriteHeader(500)
 			fmt.Fprint(w, jserr.Error())
-			fmt.Println("Error occured when trying to marshal the response to delete a user")
+			fmt.Println("Error occured when trying to marshal the decoded response into specified JSON format!")
 			return
 		}
 
-		//return back to Front-End user
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(200)
-		w.Write(js)
-	}
-}
-func (s *Server) handleloginuser() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		//get username and password for login
-		username := r.URL.Query().Get("username")
-		password := r.URL.Query().Get("password")
-		if username == "" {
-			w.WriteHeader(500)
-			fmt.Fprint(w, "No username provided in URL")
-			fmt.Println("A username has not been provided in URL")
-			return
-		}
-		if password == "" {
-			w.WriteHeader(500)
-			fmt.Fprint(w, "No password provided in URL")
-			fmt.Println("A password has not been provided in URL")
-			return
-		}
-
-		//get from CRUD service
-		req, respErr := http.Get("http://" + config.CRUDHost + ":" + config.CRUDPort + "/userlogin?username=" + username + "&password=" + password)
-
-		//check for response error of 500
-		if respErr != nil {
-			w.WriteHeader(500)
-			fmt.Fprint(w, respErr.Error())
-			fmt.Println("Error in communication with CRUD service endpoint for request to login user")
-			return
-		}
-		if req.StatusCode != 200 {
-			fmt.Println("Request to DB can't be completed to login user")
-		}
-		if req.StatusCode == 500 {
-			w.WriteHeader(500)
-			bodyBytes, err := ioutil.ReadAll(req.Body)
-			if err != nil {
-				log.Fatal(err)
-			}
-			bodyString := string(bodyBytes)
-			fmt.Fprintf(w, "Database error occured upon retrieval"+bodyString)
-			fmt.Println("Database error occured upon retrieval" + bodyString)
-			return
-		}
-
-		//close the request
-		defer req.Body.Close()
-
-		//create new response struct
-		var loginResponse LoginUserResult
-		decoder := json.NewDecoder(req.Body)
-		err := decoder.Decode(&loginResponse)
-		if err != nil {
-			w.WriteHeader(500)
-			fmt.Fprint(w, err.Error())
-			fmt.Println("Unable to decode login response")
-			return
-		}
-
-		//convert struct back to JSON
-		js, jserr := json.Marshal(loginResponse)
-		if jserr != nil {
-			w.WriteHeader(500)
-			fmt.Fprint(w, jserr.Error())
-			fmt.Println("Error occured when trying to marshal the response to logging in a user")
-			return
-		}
-
-		//return back to Front-End user
+		//return success back to Front-End user
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
 		w.Write(js)
 	}
 }
 
-func (s *Server) handlegetuser() http.HandlerFunc {
+func (s *Server) handlegetactivechats() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		//get userID from url
-		userid := r.URL.Query().Get("id")
+		//Get User ID from URL
+
+		userid := r.URL.Query().Get("userid")
+
+		//Check if User ID provided is null
 		if userid == "" {
 			w.WriteHeader(500)
-			fmt.Fprint(w, "UserID not properly provided in URL")
-			fmt.Println("UserID not properly provided in URL")
+			fmt.Fprint(w, "User ID not properly provided in URL")
+			fmt.Println("User ID not proplery provided in URL")
 			return
 		}
-
-		//get userID from crud service
-		req, respErr := http.Get("http://" + config.CRUDHost + ":" + config.CRUDPort + "/user?id=" + userid)
+		req, respErr := http.Get("http://" + config.CRUDHost + ":" + config.CRUDPort + "/chats?userid=" + userid)
 
 		//check for response error of 500
 		if respErr != nil {
 			w.WriteHeader(500)
 			fmt.Fprint(w, respErr.Error())
-			fmt.Println("Error in communication with CRUD service endpoint for request to retrieve user information")
-			return
-		}
-		if req.StatusCode != 200 {
-			w.WriteHeader(500)
-			fmt.Fprint(w, "Request to DB can't be completed...")
-			fmt.Println("Request to DB can't be completed...")
-		}
-		if req.StatusCode == 500 {
-			w.WriteHeader(500)
-			bodyBytes, err := ioutil.ReadAll(req.Body)
-			if err != nil {
-				log.Fatal(err)
-			}
-			bodyString := string(bodyBytes)
-			fmt.Fprintf(w, "An internal error has occured whilst trying to get user data"+bodyString)
-			fmt.Println("An internal error has occured whilst trying to get user data" + bodyString)
-			return
-		}
-
-		//close the request
-		defer req.Body.Close()
-
-		//create new response struct
-		var getResponse GetUserResult
-		decoder := json.NewDecoder(req.Body)
-		err := decoder.Decode(&getResponse)
-		if err != nil {
-			w.WriteHeader(500)
-			fmt.Fprint(w, err.Error())
-			fmt.Println("An internal error has occured whilst trying to decode the get user response")
-			return
-		}
-
-		//convert struct back to JSON
-		js, jserr := json.Marshal(getResponse)
-		if jserr != nil {
-			w.WriteHeader(500)
-			fmt.Fprint(w, jserr.Error())
-			fmt.Println("Error occured when trying to marshal the response to get user")
-			return
-		}
-
-		//return back to Front-End user
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(200)
-		w.Write(js)
-	}
-}
-
-func (s *Server) handleforgotpassword() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("Handle forgot password Has Been Called in the Cred manager and recieved the email from URL")
-		//Get Email Address from URL
-
-		useremail := r.URL.Query().Get("email")
-
-		//Check if no Email address was provided in the URL
-		if useremail == "" {
-			w.WriteHeader(500)
-			fmt.Fprint(w, "Email address not properly provided in URL")
-			fmt.Println("Email address not properly provided in URL")
-			return
-		}
-
-		//post to crud service
-		req, respErr := http.Get("http://" + config.CRUDHost + ":" + config.CRUDPort + "/forgotpassword?email=" + useremail)
-
-		//check for response error of 500
-		if respErr != nil {
-			w.WriteHeader(500)
-			fmt.Fprint(w, respErr.Error())
-			fmt.Println("Error in communication with CRUD service endpoint for request to retrieve password reset information")
+			fmt.Println("Error in communication with CRUD service endpoint for request to retrieve user active chat information")
 			return
 		}
 		if req.StatusCode != 200 {
@@ -392,87 +199,33 @@ func (s *Server) handleforgotpassword() http.HandlerFunc {
 				log.Fatal(err)
 			}
 			bodyString := string(bodyBytes)
-			fmt.Fprintf(w, "An internal error has occured whilst trying to get advertisement data"+bodyString)
-			fmt.Println("An internal error has occured whilst trying to get advertisement data" + bodyString)
+			fmt.Fprintf(w, "An internal error has occured whilst trying to get a users active chat data"+bodyString)
+			fmt.Println("An internal error has occured whilst trying to get a users active chat data" + bodyString)
 			return
 		}
 
 		//close the request
 		defer req.Body.Close()
 
-		//create new response struct
-		var forgotpasswordresult ForgotPasswordResult
+		//create new response struct for JSON list
+		activeChatList := ActiveChatList{}
+		activeChatList.ActiveChats = []GetActiveChatResult{}
 
 		//decode request into decoder which converts to the struct
 		decoder := json.NewDecoder(req.Body)
-		err := decoder.Decode(&forgotpasswordresult)
+		err := decoder.Decode(&activeChatList)
 		if err != nil {
 			w.WriteHeader(500)
 			fmt.Fprint(w, err.Error())
-			fmt.Println("Error occured in decoding get Advertisement response ")
+			fmt.Println("Error occured in decoding get User active chats response ")
 			return
 		}
-
 		//convert struct back to JSON
-		js, jserr := json.Marshal(forgotpasswordresult)
+		js, jserr := json.Marshal(activeChatList)
 		if jserr != nil {
 			w.WriteHeader(500)
 			fmt.Fprint(w, jserr.Error())
 			fmt.Println("Error occured when trying to marshal the decoded response into specified JSON format!")
-			return
-		}
-
-		//Take CRUD response and compile a new response for email service
-		var forgotPasswordEmail ForgotPasswordEmail
-		forgotPasswordEmail.ToEmail = forgotpasswordresult.Email
-		forgotPasswordEmail.Subject = "Forgot Password"
-		forgotPasswordEmail.Password = "Your new password as requested is: " + forgotpasswordresult.Password
-		forgotPasswordEmail.Message = forgotpasswordresult.Message
-
-		//create byte array from JSON payload
-		requestByte1, _ := json.Marshal(forgotPasswordEmail)
-
-		//send CRUD response to email service
-		req1, respErr1 := http.Post("http://"+config.EMAILHost+":"+config.EMAILPort+"/forgotpassword", "application/json", bytes.NewBuffer(requestByte1))
-
-		fmt.Println("Sent to email service")
-		//check for response error of 500
-		if respErr1 != nil {
-			w.WriteHeader(500)
-			fmt.Fprint(w, respErr1.Error())
-			fmt.Println("Error received from email service->" + respErr1.Error())
-			return
-		}
-		if req1.StatusCode != 200 {
-			fmt.Fprint(w, "Request to Email Service can't be completed...")
-			fmt.Println("Unable to process password reset")
-		}
-		if req1.StatusCode == 500 {
-			w.WriteHeader(500)
-
-			bodyBytes1, err1 := ioutil.ReadAll(req1.Body)
-			if err1 != nil {
-				log.Fatal(err1)
-			}
-			bodyString := string(bodyBytes1)
-			fmt.Fprintf(w, "Request to Emal Service can't be completed..."+bodyString)
-			fmt.Println("Request to Email Service can't be completed..." + bodyString)
-			return
-		}
-
-		//close the request
-		defer req.Body.Close()
-
-		//create new response struct for front-end user
-		var emailResponse EmailResult
-		emailResponse.Message = forgotpasswordresult.Message
-
-		//convert struct back to JSON
-		js, jserr3 := json.Marshal(emailResponse)
-		if jserr3 != nil {
-			w.WriteHeader(500)
-			fmt.Fprint(w, jserr3.Error())
-			fmt.Println("Error occured when trying to marshal the response to get user")
 			return
 		}
 
@@ -483,62 +236,148 @@ func (s *Server) handleforgotpassword() http.HandlerFunc {
 	}
 }
 
-func (s *Server) handleupdatepassword() http.HandlerFunc {
+func (s *Server) handlegetmessages() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		//get JSON payload
-		updatePassword := UpdatePassword{}
-		err := json.NewDecoder(r.Body).Decode(&updatePassword)
 
-		//handle for bad JSON provided
-		if err != nil {
+		//Get Ad post type from URL
+		chatid := r.URL.Query().Get("chatid")
+
+		//Check if Advertisement Post Type is not provided in URL
+		if chatid == "" {
 			w.WriteHeader(500)
-			fmt.Fprint(w, err.Error())
+			fmt.Fprint(w, "Post type not properly provided in URL")
+			fmt.Println("Post type not properly provided in URL")
 			return
 		}
 
-		client := &http.Client{}
+		//post to crud service
+		req, respErr := http.Get("http://" + config.CRUDHost + ":" + config.CRUDPort + "/message?chatid=" + chatid)
 
-		//create byte array from JSON payload
-		requestByte, _ := json.Marshal(updatePassword)
-
-		//put to crud service
-		req, err := http.NewRequest("PUT", "http://"+config.CRUDHost+":"+config.CRUDPort+"/userpassword", bytes.NewBuffer(requestByte))
-		if err != nil {
-			fmt.Fprint(w, err.Error())
-			fmt.Println("Error in communication with CRUD service endpoint for request to update user")
+		//check for response error of 500
+		if respErr != nil {
+			w.WriteHeader(500)
+			fmt.Fprint(w, respErr.Error())
+			fmt.Println("Error in communication with CRUD service endpoint for request to retrieve advertisement information")
 			return
 		}
-
-		// Fetch Request
-		resp, err := client.Do(req)
-		if err != nil {
-			fmt.Fprint(w, err.Error())
+		if req.StatusCode != 200 {
+			w.WriteHeader(req.StatusCode)
+			fmt.Fprint(w, "Request to DB can't be completed...")
+			fmt.Println("Request to DB can't be completed...")
+		}
+		if req.StatusCode == 500 {
+			w.WriteHeader(500)
+			bodyBytes, err := ioutil.ReadAll(req.Body)
+			if err != nil {
+				log.Fatal(err)
+			}
+			bodyString := string(bodyBytes)
+			fmt.Fprintf(w, "An internal error has occured whilst trying to get message data"+bodyString)
+			fmt.Println("An internal error has occured whilst trying to get message data" + bodyString)
 			return
 		}
 
 		//close the request
-		defer resp.Body.Close()
+		defer req.Body.Close()
 
-		//create new response struct
-		var passwordResponse UpdatePasswordResult
-		decoder := json.NewDecoder(resp.Body)
-		err = decoder.Decode(&passwordResponse)
+		//create new response struct for JSON list
+		messagesList := MessageList{}
+		messagesList.Messages = []GetMessageResult{}
+
+		//decode request into decoder which converts to the struct
+		decoder := json.NewDecoder(req.Body)
+		err := decoder.Decode(&messagesList)
 		if err != nil {
 			w.WriteHeader(500)
 			fmt.Fprint(w, err.Error())
+			fmt.Println("Error occured in decoding get Messages response ")
 			return
 		}
-
 		//convert struct back to JSON
-		js, jserr := json.Marshal(passwordResponse)
+		js, jserr := json.Marshal(messagesList)
 		if jserr != nil {
 			w.WriteHeader(500)
 			fmt.Fprint(w, jserr.Error())
-			fmt.Println("Error occured when trying to marshal the response to update user")
+			fmt.Println("Error occured when trying to marshal the decoded response into specified JSON format!")
 			return
 		}
 
-		//return back to Front-End user
+		//return success back to Front-End user
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		w.Write(js)
+	}
+}
+
+func (s *Server) handleaddmessage() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		addmessage := SendMessage{}
+		err := json.NewDecoder(r.Body).Decode(&addmessage)
+		//handle for bad JSON provided
+
+		if err != nil {
+			w.WriteHeader(500)
+			fmt.Fprint(w, err.Error())
+			fmt.Println("Could not read body of request into proper JSON format for adding a message.\n Please check that your data is in the correct format.")
+			return
+		}
+
+		//create byte array from JSON payload
+		requestByte, _ := json.Marshal(addmessage)
+
+		//post to crud service
+		req, respErr := http.Post("http://"+config.CRUDHost+":"+config.CRUDPort+"/message", "application/json", bytes.NewBuffer(requestByte))
+
+		//check for response error of 500
+		if respErr != nil {
+			w.WriteHeader(500)
+			fmt.Fprint(w, respErr.Error())
+			fmt.Println("Error in communication with CRUD service endpoint for request to retrieve advertisement information")
+			return
+		}
+		if req.StatusCode != 200 {
+			w.WriteHeader(req.StatusCode)
+			fmt.Fprint(w, "Request to DB can't be completed...")
+			fmt.Println("Request to DB can't be completed...")
+		}
+		if req.StatusCode == 500 {
+			w.WriteHeader(500)
+			bodyBytes, err := ioutil.ReadAll(req.Body)
+			if err != nil {
+				log.Fatal(err)
+			}
+			bodyString := string(bodyBytes)
+			fmt.Fprintf(w, "An internal error has occured whilst trying to get message data"+bodyString)
+			fmt.Println("An internal error has occured whilst trying to get message data" + bodyString)
+			return
+		}
+
+		//close the request
+		defer req.Body.Close()
+
+		//create new response struct for JSON list
+		messagesList := MessageList{}
+		messagesList.Messages = []GetMessageResult{}
+
+		//decode request into decoder which converts to the struct
+		decoder := json.NewDecoder(req.Body)
+		err1 := decoder.Decode(&messagesList)
+		if err1 != nil {
+			w.WriteHeader(500)
+			fmt.Fprint(w, err1.Error())
+			fmt.Println("Error occured in decoding get Messages response ")
+			return
+		}
+		//convert struct back to JSON
+		js, jserr := json.Marshal(messagesList)
+		if jserr != nil {
+			w.WriteHeader(500)
+			fmt.Fprint(w, jserr.Error())
+			fmt.Println("Error occured when trying to marshal the decoded response into specified JSON format!")
+			return
+		}
+
+		//return success back to Front-End user
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
 		w.Write(js)
