@@ -4,8 +4,10 @@ import "github.com/gorilla/mux"
 
 //create structs for JSON objects recieved and responses
 type StartChat struct {
-	SellerID string `json:"sellerid"`
-	BuyerID  string `json:"buyerid"`
+	SellerID          string `json:"sellerid"`
+	BuyerID           string `json:"buyerid"`
+	AdvertisementType string `json:"advertisementtype"`
+	AdvertisementID   string `json:"advertisementid"`
 }
 
 type StartChatResult struct {
@@ -24,10 +26,12 @@ type DeleteChatResult struct {
 }
 
 type GetActiveChatResult struct {
-	ChatID      string `json:"chatid"`
-	UserName    string `json:"username"`
-	Message     string `json:"message"`
-	MessageDate string `json:"messagedate"`
+	ChatID            string `json:"chatid"`
+	AdvertisementType string `json:"advertisementtype"`
+	AdvertisementID   string `json:"advertisementid"`
+	UserName          string `json:"username"`
+	Message           string `json:"message"`
+	MessageDate       string `json:"messagedate"`
 }
 
 type ActiveChatList struct {
