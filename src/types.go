@@ -30,13 +30,12 @@ type GetActiveChatResult struct {
 	AdvertisementType string `json:"advertisementtype"`
 	AdvertisementID   string `json:"advertisementid"`
 	UserName          string `json:"username"`
+	Price             string `json:"price"`
+	Title             string `json:"title"`
+	Description       string `json:"description"`
 	Message           string `json:"message"`
 	MessageDate       string `json:"messagedate"`
-	Price       string `json:"price"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
 }
-
 type ActiveChatList struct {
 	ActiveChats []GetActiveChatResult `json:"activechats"`
 }
