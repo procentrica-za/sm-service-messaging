@@ -240,18 +240,26 @@ func (s *Server) handlegetmessages() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		//Get Ad post type from URL
+		userid := r.URL.Query().Get("userid")
 		chatid := r.URL.Query().Get("chatid")
 
 		//Check if Advertisement Post Type is not provided in URL
+		if userid == "" {
+			w.WriteHeader(500)
+			fmt.Fprint(w, "UserID not properly provided in URL")
+			fmt.Println("UserID not properly provided in URL")
+			return
+		}
+
 		if chatid == "" {
 			w.WriteHeader(500)
-			fmt.Fprint(w, "Post type not properly provided in URL")
-			fmt.Println("Post type not properly provided in URL")
+			fmt.Fprint(w, "ChatID not properly provided in URL")
+			fmt.Println("ChatID not properly provided in URL")
 			return
 		}
 
 		//post to crud service
-		req, respErr := http.Get("http://" + config.CRUDHost + ":" + config.CRUDPort + "/message?chatid=" + chatid)
+		req, respErr := http.Get("http://" + config.CRUDHost + ":" + config.CRUDPort + "/message?userid=" + userid + "&chatid=" + chatid)
 
 		//check for response error of 500
 		if respErr != nil {

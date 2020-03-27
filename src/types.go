@@ -35,6 +35,7 @@ type GetActiveChatResult struct {
 	Description       string `json:"description"`
 	Message           string `json:"message"`
 	MessageDate       string `json:"messagedate"`
+	IsRead            string `json:"isread"`
 }
 type ActiveChatList struct {
 	ActiveChats []GetActiveChatResult `json:"activechats"`
