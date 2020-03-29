@@ -60,6 +60,10 @@ type SendMessage struct {
 	Message  string `json:"message"`
 }
 
+type UnreadResult struct {
+	UnreadMessages bool `json:"unreadmessages"`
+}
+
 //touter service struct
 type Server struct {
 	router *mux.Router

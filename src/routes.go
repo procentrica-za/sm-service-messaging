@@ -7,4 +7,5 @@ func (s *Server) routes() {
 	s.router.HandleFunc("/chats", s.handlegetactivechats()).Methods("GET")
 	s.router.HandleFunc("/message", s.handlegetmessages()).Methods("GET")
 	s.router.HandleFunc("/message", s.handleaddmessage()).Methods("POST")
+	s.router.HandleFunc("/unreadchats", s.handlegetunreadmessages()).Methods("GET")
 }
