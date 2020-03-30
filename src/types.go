@@ -35,7 +35,10 @@ type GetActiveChatResult struct {
 	Description       string `json:"description"`
 	Message           string `json:"message"`
 	MessageDate       string `json:"messagedate"`
+	IsRead            string `json:"isread"`
+	MessageAuthor     string `json:"messageauthor"`
 }
+
 type ActiveChatList struct {
 	ActiveChats []GetActiveChatResult `json:"activechats"`
 }
@@ -55,6 +58,10 @@ type SendMessage struct {
 	ChatID   string `json:"chatid"`
 	AuthorID string `json:"authorid"`
 	Message  string `json:"message"`
+}
+
+type UnreadResult struct {
+	UnreadMessages bool `json:"unreadmessages"`
 }
 
 //touter service struct
