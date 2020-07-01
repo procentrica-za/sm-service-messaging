@@ -261,7 +261,7 @@ func (s *Server) handlegetmessages() http.HandlerFunc {
 		//post to crud service
 		req, respErr := http.Get("http://" + config.CRUDHost + ":" + config.CRUDPort + "/message?userid=" + userid + "&chatid=" + chatid)
 
-		//check for response error of 500
+		//check for response error of 500.
 		if respErr != nil {
 			w.WriteHeader(500)
 			fmt.Fprint(w, respErr.Error())
